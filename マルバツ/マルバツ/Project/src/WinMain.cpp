@@ -65,7 +65,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SetGraphMode(WINDOW_W, WINDOW_H, 32);
 	SetBackgroundColor(125, 125, 255);
 	SetMainWindowText("マルバツ");
-	if (DxLib_Init() == -1) { return -1; }
+	if (DxLib_Init() == -1) { return -1;}
 
 	SetDrawScreen(DX_SCREEN_BACK);
 
@@ -86,8 +86,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	DrawInit();				// 描画処理初期化関数の呼び出し
 
 	// mapの初期化
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			map[i][j] = STONE_MAX;
+		}
+
+	}
 	//※※　二次元配列mapの全要素を STONE_MAX で初期化する
-	map[STAGE_WIDTH][STAGE_HEIGHT] = STONE_MAX;
+	
+	
 
 	// ゲームのメインループ
 	// 画面を１回表示する毎にwhile分を１回処理する
@@ -103,53 +112,79 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		// ----------------------------------------------------
 		InputUpdate();			// 入力処理更新関数の呼び出し
 		//※※ winner に勝利者情報を代入	// 勝利者のチェック
-		winner = WINNER_NON;
+		winner = CheckWinner();
 
 		// --- 入力状況をチェックして、適切な処理を行う
 		// 決着がついてない時だけ入力を受け付けるように if文 でチェックする
-		if(CheckWinner() != winner)
+		if(winner == WINNER_NON)
 		{
 			// 上下左右の入力があった時の処理
 			if( IsPushKey(MY_INPUT_UP))
 			{
 				//※※ pos_yの値を 1 減らす
-				pos_y -= 1;
+				pos_y = pos_y -1;
+				if (pos_y < 0)
+				{
+					pos_y = 0;
+				}
 			}
 			else if( IsPushKey (MY_INPUT_DOWN))
 			{
 				//※※ pos_yの値を 1 増やす
-				pos_y += 1;
+				pos_y = pos_y +1;
+				if (pos_y > 2)
+				{
+					pos_y = 2;
+				}
 			}
 			else if( IsPushKey (MY_INPUT_LEFT))
 			{
 				//※※ pos_xの値を 1 減らす
-				pos_x -= 1;
+				pos_x = pos_x -1;
+				if (pos_x < 0)
+				{
+					pos_x = 0;
+				}
 			}
 			else if( IsPushKey (MY_INPUT_RIGHT) )
 			{
 				//※※ pos_xの値を 1 増やす
-				pos_x += 1;
+				pos_x = pos_x +1 ;
+				if (pos_x > 2)
+				{
+					pos_x = 2;
+				}
 			}
 			// 決定(=エンターキー)が押された時の処理
 			else if( IsPushKey (MY_INPUT_ENTER) )
 			{
 				// 現在の座標が有効か if文 でチェックし、
 				// 結果が true の時、以下の処理を行う
-				if (IsPutStone(pos_x, pos_y) == true  )
+				if (IsPutStone(pos_x, pos_y) == true)
 				{
 					//※※
 					// 以下の処理を実装する
 					// 選択されている座標と対応するmap配列の要素へturnの値を代入
-					map[STAGE_WIDTH][STAGE_HEIGHT] = true;
+					map[pos_x][pos_y] = turn;
+					if (turn == STONE_WHITE)
+					{
+						turn = STONE_BLACK;
+					}
+					else if (turn == STONE_BLACK)
+					{
+						turn = STONE_WHITE;
+					}
 					// 次のターンに回すため、turnの値を変更する
 
 				}
 			}
 		}
+		
 
 		// 以下、描画処理
 		// ----------------------------------------------------
 		//※※　// 情報文章を描画
+		DrawInit();
 		DrawInformation(turn);
 		//※※　// ゲームクリアの文字を描画
 		DrawGameClear(winner);
@@ -160,18 +195,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		{
 			for (int j = 0; j < 3; j++)
 			{
-				if (KEY_INPUT_ESCAPE)
+				if (map[i][j] == STONE_BLACK)
 				{
-					STONE_WHITE;
+					DrawStone(i, j, STONE_BLACK);
 				}
-				else
+				else if (map[i][j] == STONE_WHITE)
 				{
-					STONE_BLACK;
+					DrawStone(i, j, STONE_WHITE);
 				}
 			}
 		}
 		//※※　カーソルを描画
-
+		DrawCursor(pos_x, pos_y);
 		// ＤＸライブラリを使う上で、モニターへゲーム画面を表示するためのお約束
 		// 必ずループの最後で呼び出す
 		// ----------------------------------------------------
@@ -196,8 +231,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 bool IsPutStone( int x, int y )
 {
 	//※※　盤面の x, y の位置に石が置けるならtrue,置けないならfalseを返す処理
-	
-	return  false;
+	if (map[x][y] == STONE_MAX)
+	{
+		return true;
+	}
+	else 
+	{
+		return false;
+	}
 }
 
 // ==============================
@@ -205,14 +246,22 @@ bool IsPutStone( int x, int y )
 // ==============================
 int CheckWinner()
 {
+	int StoneConter = 0;
 	//※※　以下の処理を実装する
 	// 縦、横、斜めが同じ石かどうかを調べる
 	// STONE_WHITE, STONE_BLACK, STONE_MAXを上手く使いましょう
-
 	// もし、まだ揃っていなかったら、盤面に置かれている石の数を調べる
-	// 全てのマスに石が置かれていたら引き分け
-	
-	// 上記のいずれかでも無かったらWINNER_NONを返す
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			if (map[i][j] != STONE_MAX)
+			{
+				StoneConter += 1;
+			}
+		}
+	}
+
 	for (int i = 0; i < 3; i++)
 	{
 		if (map[i][0] == STONE_WHITE)    //横列で白が勝ち
@@ -297,5 +346,20 @@ int CheckWinner()
 				}
 			}
 		}
+	
 	}
+
+
+		
+		// 全てのマスに石が置かれていたら引き分け
+		if (StoneConter == 9)
+		{
+			StoneConter = 0;
+			return WINNER_DRAW;
+		}
+	
+	// 上記のいずれかでも無かったらWINNER_NONを返す
+	return WINNER_NON;
+	
+	
 }
